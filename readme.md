@@ -5,15 +5,25 @@ Setup
 npm i
 ```
 
-```bash
 building
+----
+```bash
 npm run build
 
-auto build when save:
 npm run build:watch
 ```
 
-add new dependence:
+start server:
+----
 
+```bash
+node index.js
+```
+
+add new dependence:
+-----
+
+```bash
 npm install --save packagename
+```
 
