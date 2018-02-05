@@ -11,6 +11,7 @@ const ss = require('socket.io-stream');
 const { ensurePath } = require('./server/services')
 
 
+
 // App configuration.
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({
@@ -38,15 +39,24 @@ io.sockets.on('connection', (user) => {
 	})
 
 	user.on('findFile', async (data) => {
-		let filePath = path.resolve(data.filePath);
+		let filePath = data.filePath;
+		if (user.id !== data.userId) {
+			return;
+		}
 		try {
-			if(await fs.stat(filePath)){
-				user.emit('download', { serverPath: filePath })
+			if (await fs.stat(filePath)) {
+				user.emit('download', { filePath: filePath })
 			}
 		} catch (err) {
 			user.emit('nofound');
 		}
 	})
+})
+
+app.get('/download/:filePath', (req, res) => {
+	let filePath = path.resolve('uploaded files/' + req.params.filePath),
+		fileName = req.params.filePath;
+	res.download(filePath, fileName)
 })
 // app.post('/upload',async (req, res) => {
 // 	let tempPath = './temp'
@@ -66,7 +76,10 @@ io.sockets.on('connection', (user) => {
 // })
 
 // app.post('/download', (req, res) => {
-// 	let filePath = path.resolve(req.body.path),
-// 		fileName = path.dirname(filePath)
-// 	res.download(filePath,fileName)
+// 	let filePath = path.resolve(req.body.filePath),
+// 		fileName = path.basename(filePath);
+// 	res.set('Content-disposition', "attachment");
+// 	res.set('filename', fileName);
+// 	res.send(filePath);
 // })
+

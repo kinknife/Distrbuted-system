@@ -1,13 +1,18 @@
 const io = require('socket.io-client');
 const ss = require('../client-lib/socket.io-stream.js');
-import * as fileStream from 'streamsaver';
+const path = require('path');
 import * as axios from 'axios'
+
 
 class MessageService {
     constructor() {
         let socket = io.connect('/');
         socket.on('connect', () => {
             this.socket = socket;
+            this.socket.on('download', (data) => {
+                let fileName = path.basename(data.filePath)
+                window.open(`${window.location.href}download/${fileName}`,'_blank');
+            })
         })
     }
 
@@ -24,13 +29,7 @@ class MessageService {
     }
 
     download(filePath) {
-        this.socket.emit('findFile', {filePath: filePath});
-        this.socket.on('download', (data) => {
-            window.open('${window.location.href}download', '_blank')
-        })
-        this.socket.on('nofound', () => {
-            return 'abc';
-        })
+        this.socket.emit('findFile', {filePath: filePath, userId: this.socket.id});
     }
 
 
