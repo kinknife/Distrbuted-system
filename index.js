@@ -3,12 +3,13 @@ const path = require('path');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io').listen(http);
-const port = 3000;
 const bodyParser = require('body-parser');
 const fs = require('fs-extra');
 const ss = require('socket.io-stream');
+const mime = require('mime-types')
 
 const { ensurePath } = require('./server/services')
+const port = 3000;
 
 
 
@@ -30,10 +31,13 @@ io.sockets.on('connection', (user) => {
 		let dir = path.resolve('./uploaded files'),
 			filePath = path.resolve('./uploaded files/' + data.fileName);
 		await ensurePath(dir);
+		let uploadStream = fs.createWriteStream(filePath);
 		stream.on('data', (data) => {
-			fs.createWriteStream(filePath, data)
+			console.log(data);
+			uploadStream.write(data);
 		})
 		stream.on('end', () => {
+			uploadStream.destroy();
 			user.emit('success');
 		})
 	})
@@ -56,8 +60,24 @@ io.sockets.on('connection', (user) => {
 app.get('/download/:filePath', (req, res) => {
 	let filePath = path.resolve('uploaded files/' + req.params.filePath),
 		fileName = req.params.filePath;
-	res.download(filePath, fileName)
+	let contentType = mime.lookup(filePath);
+	res.set('Content-type',contentType);
+	res.download(filePath,fileName);
+	// let downloadStream = fs.createReadStream(filePath);
+	// downloadStream.on('data',(data) => {
+	// 	console.log('in')
+	// 	res.write(JSON.stringify({data: data}));
+	// })
+	// downloadStream.on('end',() => {
+	// 	res.end();
+	// })
 })
+
+
+
+
+
+
 // app.post('/upload',async (req, res) => {
 // 	let tempPath = './temp'
 // 	ensurePath(tempPath);

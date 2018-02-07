@@ -13,7 +13,7 @@ class App extends Component {
 	}
 
 	handleDownload() {
-		messageService.download('./uploaded files/512MB.zip');
+		messageService.download('./uploaded files/lịch học.PNG');
 	}
 
 	render() {
