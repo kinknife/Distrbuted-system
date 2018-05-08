@@ -1,0 +1,42 @@
+.fileTable {
+  width: 70%;
+  background-color: white;
+  // border: 1px solid rgba(0, 0, 0, 0.1);
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  thead {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.1);
+    th {
+      text-align: left;
+      padding: 10px 20px;
+    }
+  }
+  tbody {
+    height: 100px;
+    overflow-y: scroll;
+  }
+  tr {
+    border-bottom: 1px solid rgb(218, 218, 218);
+    width: 100%;
+    .bodyRow {
+      div {
+        display: flex;
+        justify-content: flex-end;
+        width: auto;
+        button {
+          font-family: "Material Icons";
+          border: none;
+          color: rgb(59, 219, 59);
+          background-color: white;
+          font-size: 20px;
+          cursor: pointer;
+        }
+      }
+      text-align: left;
+      padding: 10px 20px;
+    }
+  }
+}

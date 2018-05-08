@@ -2,40 +2,108 @@ import React, { Component } from "react";
 import logo from "./logo.svg";
 import "./App.less";
 import { messageService } from "./services/messages";
-import { LoginPage } from "./component/LoginPage";
-import { ToolBar } from "./component/ToolBar";
-import { UploadFiles } from "./component/uploadFiles";
+import {
+  LoginPage,
+  ToolBar,
+  UploadFiles,
+  FileTable,
+  ComfirmPopup
+} from "./component";
+const throttle = require("./client-lib/throttle");
 
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      id: "kinknife",
+      id: null,
       res: null,
       files: [],
-      uploadingFiles: {}
+      uploadingFiles: {},
+      comfirmPopup: false
     };
   }
+
+  componentDidMount() {
+    messageService.addUpdateFun(
+      throttle.delay(this.updateUpload.bind(this), 200)
+    );
+    messageService.getFile(this.state.id).then(res => {
+      this.setState({
+        files: res
+      });
+    });
+    messageService.setUserName(this.state.id);
+  }
+
+  updateUpload() {
+    let keys = Object.keys(this.state.uploadingFiles),
+      cloneUpload = this.state.uploadingFiles;
+    for (let key of keys) {
+      if (messageService.uploading[key]) {
+        cloneUpload[key].uploaded = messageService.uploading[key].uploaded;
+        cloneUpload[key].status = messageService.uploading[key].status;
+      } else {
+        delete cloneUpload[key];
+        if (messageService.uploadedFile) {
+          let newFile = messageService.uploadedFile;
+          let newUploadFile = this.state.files;
+          let existedFile = newUploadFile.find(file => {
+            return file.name === newFile.name;
+          });
+          if (!existedFile) {
+            newUploadFile.push(messageService.uploadedFile);
+          } else {
+            existedFile = Object.assign(existedFile, newFile);
+          }
+          this.setState({
+            files: newUploadFile
+          });
+          messageService.updatedUpload();
+        }
+      }
+    }
+    this.setState({
+      uploadingFiles: cloneUpload
+    });
+  }
+
   handleUpload() {
     let uploadFile = this.fileInput.files[0],
-        newUploadFile = {};
-    newUploadFile[uploadFile.name] = {size: uploadFile.size}
+      newUploadFile = {};
+    let dup = false;
+    for (let each of this.state.files) {
+      if (each.name === uploadFile.name) {
+        this.setState({
+          comfirmPopup: true
+        });
+        dup = true;
+        return;
+      }
+    }
+    newUploadFile[uploadFile.name] = { size: uploadFile.size, dup: dup };
     this.setState({
-      uploadingFiles: Object.assign(this.state.uploadingFiles,newUploadFile)
-    })
-    messageService.upload(uploadFile, this.state.id);
+      uploadingFiles: Object.assign(this.state.uploadingFiles, newUploadFile)
+    });
+    messageService.upload(uploadFile, this.state.id, dup);
   }
 
-  handleDownload() {
-    messageService.download("./uploaded files/kinknife/lịch học.PNG");
+  handleDownload(fileName) {
+    let filePath = `./uploaded files/${this.state.id}/${fileName}`;
+    messageService.download(filePath);
   }
 
-  handlePauseUpload() {
-    messageService.pause(this.fileInput.files[0].name);
+  handlePauseUpload(fileName) {
+    messageService.pause(fileName);
   }
 
-  handleResumeUpload() {
-    messageService.resume(this.fileInput.files[0].name);
+  handleResumeUpload(fileName) {
+    messageService.resume(fileName);
+  }
+
+  handleCancelUpload(fileName) {
+    console.log(fileName);
+    let filePath = `./uploaded files/${this.state.id}/${fileName}`;
+    messageService.cancelUpload(filePath);
   }
 
   handleLogin(message) {
@@ -49,6 +117,7 @@ class App extends Component {
         this.setState({
           id: message.username
         });
+        messageService.setUserName(this.state.id);
       } else {
         this.setState({
           res: res
@@ -63,6 +132,7 @@ class App extends Component {
         this.setState({
           id: message.username
         });
+        messageService.setUserName(this.state.id);
       } else {
         this.setState({
           res: res
@@ -73,7 +143,33 @@ class App extends Component {
 
   renderUploadFile() {
     if (Object.keys(this.state.uploadingFiles).length > 0) {
-      return <UploadFiles ref={(uploadPopup) => {this.uploadPopup = uploadPopup}} uploading={this.state.uploadingFiles}/>;
+      return (
+        <UploadFiles
+          ref={uploadPopup => {
+            this.uploadPopup = uploadPopup;
+          }}
+          uploading={this.state.uploadingFiles}
+          handlePauseUpload={fileName => {
+            this.handlePauseUpload(fileName);
+          }}
+          handleResumeUpload={fileName => {
+            this.handleResumeUpload(fileName);
+          }}
+          handleCancelUpload={fileName => {
+            this.handleCancelUpload(fileName);
+          }}
+        />
+      );
+    }
+  }
+
+  renderPopup() {
+    if(this.state.comfirmPopup){
+      return (
+        <div className="noRoot">
+          <ComfirmPopup />
+        </div>
+      );
     }
   }
 
@@ -103,11 +199,14 @@ class App extends Component {
             />
           </div>
           <div className="appBody">
-            <button onClick={() => this.handleUpload()}>upload</button>
-            <button onClick={() => this.handleDownload()}>download</button>
-            <button onClick={() => this.handlePauseUpload()}>pause</button>
-            <button onClick={() => this.handleResumeUpload()}>resume</button>
+            <FileTable
+              files={this.state.files}
+              handleDownload={fileName => {
+                this.handleDownload(fileName);
+              }}
+            />
           </div>
+          {this.renderPopup()}
           {this.renderUploadFile()}
         </div>
       );

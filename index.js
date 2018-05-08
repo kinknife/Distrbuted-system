@@ -6,7 +6,6 @@ const bodyParser = require("body-parser");
 const fs = require("fs-extra");
 const path = require("path");
 const ss = require("socket.io-stream");
-const mime = require("mime-types");
 const md5 = require("md5");
 
 const { ensurePath } = require("./server/services");
@@ -45,50 +44,70 @@ http.listen(port, function() {
 });
 
 io.sockets.on("connection", user => {
+  let uploading = {};
   ss(user).on("upload", async (stream, data) => {
-    let dir = path.resolve("./uploaded files"),
-      filePath = path.resolve("./uploaded files/" + data.fileName);
+    let filePath = path.resolve("./uploaded files/" + data.fileName);
+    let dir = path.dirname(filePath);
+    let truePath = filePath;
+    let objectName = filePath;
     await ensurePath(dir);
+    if (data.dup) {
+      filePath += ".backup";
+      objectName = filePath;
+    }
+
     let uploadStream = fs.createWriteStream(filePath);
+    uploading[truePath] = {
+      filePath: filePath,
+      uploadStream: uploadStream,
+      size: data.size,
+      uploaded: 0
+    };
     stream.on("data", data => {
       uploadStream.write(data);
+      uploading[truePath].uploaded += data.length;
     });
-    stream.on("end", () => {
-      console.log("end");
+    stream.on("end", async () => {
       uploadStream.destroy();
-      user.emit("success");
+      if (filePath.indexOf(".backup") !== -1) {
+        await fs.unlink(truePath);
+        await fs.rename(filePath, truePath);
+        delete uploading[truePath];
+      }
+      let stats = await fs.stat(truePath),
+          newFile = {
+            createTime: stats.birthtime,
+            size: stats.size,
+            name: path.basename(truePath)
+          };
+      user.emit("success", {fileName:path.basename(truePath),newFile: newFile});
     });
   });
 
-  user.on("findFile", async data => {
-    let filePath = data.filePath;
-    if (user.id !== data.userId) {
-      return;
-    }
-    try {
-      if (await fs.stat(filePath)) {
-        user.emit("download", { filePath: filePath });
-      }
-    } catch (err) {
-      user.emit("nofound");
+  user.on("cancelUpload", async data => {
+    let filePath = path.resolve(data.filePath);
+    if(uploading[filePath]){
+      await uploading[filePath].uploadStream.destroy();
+      await fs.unlink(uploading[filePath].filePath);
+      delete uploading[filePath];
     }
   });
-});
 
-app.get("/download/:filePath/:fileDir/:fileName", (req, res) => {
-  let filePath = path.resolve("uploaded files/" + req.params.fileDir + '/' + req.params.fileName),
-    fileName = req.params.fileName;
-  let contentType = mime.lookup(filePath);
-  res.set("Content-type", contentType);
-  res.download(filePath, fileName);
-  // let downloadStream = fs.createReadStream(filePath);
-  // downloadStream.on('data',(data) => {
-  // 	console.log('in')
-  // 	res.write(JSON.stringify({data: data}));
-  // })
-  // downloadStream.on('end',() => {
-  // 	res.end();
-  // })
+  user.on("disconnect", async () => {
+    for (let each in uploading) {
+      if (uploading[each].uploaded === uploading[each].size) {
+        continue;
+      }
+      await uploading[each].uploadStream.destroy();
+      await fs.unlink(uploading[each].filePath);
+    }
+  });
+
+  ss(user).on("fileDownload", (stream, data) => {
+    let filePath = path.resolve(data.filePath);
+    let readStream = fs.createReadStream(filePath);
+    readStream.pipe(stream);
+  });
 });
 
 app.post("/files", async (req, res) => {
@@ -97,13 +116,17 @@ app.post("/files", async (req, res) => {
     dirPath = `./uploaded files/${username}`;
   uploadFiles = [];
   for (let each of files) {
-    let stats = await fs.stat(path.join(dirPath, each)),
-      newFile = {
-        createTime: stats.birthtime,
-        size: stats.size,
-        name: each
-      };
-    uploadFiles.push(newFile);
+    try {
+      let stats = await fs.stat(path.join(dirPath, each)),
+        newFile = {
+          createTime: stats.birthtime,
+          size: stats.size,
+          name: each
+        };
+      uploadFiles.push(newFile);
+    } catch (err) {
+      continue;
+    }
   }
   res.send(uploadFiles);
 });
