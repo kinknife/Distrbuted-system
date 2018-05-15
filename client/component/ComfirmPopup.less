@@ -1,6 +1,47 @@
 .popupContainer {
-    height: 150px;
-    width: 400px;
+    position: relative;
+    height: 130px;
+    width: 370px;
     background-color: white;
-    border-radius: 5px; 
+    border-radius: 5px;
+    padding: 20px;
+    .closebtn {
+		font-size: 20px;
+		width: 15px;
+		height: 15px;
+		line-height: 16px;
+		text-align: center;
+		color: #727272;
+		position: absolute;
+		right: 10px;
+		top: 10px;
+		cursor: pointer;
+		vertical-align: middle;
+		&:hover {
+			background: #727272;
+			color: white;
+			border-radius: 100%;
+		}
+	}
+    p {
+        padding: 10px 0 30px 0;
+    }
+    .btnBox {
+        padding-left: 250px;
+        button {
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            margin-right: 10px;
+            cursor: pointer;
+        }             
+    }
+
+    .btnBox button:nth-child(1) {
+        background-color: rgb(212, 212, 212)
+    }
+
+    .btnBox button:nth-child(2) {
+        background-color: transparent;
+    }
 }

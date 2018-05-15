@@ -70,21 +70,18 @@ class App extends Component {
   handleUpload() {
     let uploadFile = this.fileInput.files[0],
       newUploadFile = {};
-    let dup = false;
-    for (let each of this.state.files) {
-      if (each.name === uploadFile.name) {
-        this.setState({
-          comfirmPopup: true
-        });
-        dup = true;
-        return;
-      }
+    if(this.checkFileName(uploadFile.name)) {
+      this.setState({
+        comfirmPopup: true
+      });
+      return;
     }
-    newUploadFile[uploadFile.name] = { size: uploadFile.size, dup: dup };
+    newUploadFile[uploadFile.name] = { size: uploadFile.size, dup: false };
     this.setState({
       uploadingFiles: Object.assign(this.state.uploadingFiles, newUploadFile)
     });
-    messageService.upload(uploadFile, this.state.id, dup);
+    messageService.upload(uploadFile, this.state.id, false);
+    this.fileInput.value = ''
   }
 
   handleDownload(fileName) {
@@ -167,10 +164,71 @@ class App extends Component {
     if(this.state.comfirmPopup){
       return (
         <div className="noRoot">
-          <ComfirmPopup />
+          <ComfirmPopup 
+            applyNewName = {() => {this.applyNewName()}}
+            keepOld = {() => {this.keepOld()}}
+            closePopup = {() => {this.closePopup()}}
+          />
         </div>
       );
     }
+  }
+
+  applyNewName() {
+    let uploadFile = this.fileInput.files[0]
+		let extentName = uploadFile.name.split('.').pop();
+    let baseName;
+    let newUploadFile = {};
+    let i = 1
+    if(extentName.length === uploadFile.name.length) {
+      baseName = extentName;
+      extentName = '';
+    } else {
+      baseName = uploadFile.name.slice(0, -extentName.length - 1);
+      extentName = '.' + extentName
+    }
+    let newName = baseName + ` (${i})` + extentName;
+    while(this.checkFileName(newName)) {
+      i++;
+      newName = baseName + ` ${i}` + extentName;
+    }
+    newUploadFile[newName] = { size: uploadFile.size, dup: false };
+    this.setState({
+      uploadingFiles: Object.assign(this.state.uploadingFiles, newUploadFile)
+    });
+    messageService.upload(uploadFile, this.state.id, false, newName);
+    this.fileInput.value = ''
+    this.closePopup()
+  }
+
+  keepOld() {
+    let uploadFile = this.fileInput.files[0];
+    let newUploadFile = {};
+    newUploadFile[uploadFile.name] = { size: uploadFile.size, dup: true };
+    this.setState({
+      uploadingFiles: Object.assign(this.state.uploadingFiles, newUploadFile)
+    });
+    messageService.upload(uploadFile, this.state.id, true);
+    this.fileInput.value = ''
+    this.closePopup()
+  }
+
+  closePopup() {
+    this.setState({
+      comfirmPopup: false
+    })
+  }
+
+  checkFileName(name) {
+    for (let each of this.state.files) {
+      if (each.name === name) {
+        this.setState({
+          comfirmPopup: true
+        });
+        return true;
+      }
+    }
+    return false
   }
 
   render() {

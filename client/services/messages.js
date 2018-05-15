@@ -81,8 +81,9 @@ class MessageService {
     }
   }
 
-  upload(file, username, dup) {
-    if (!this.socket || this.uploading[file.name]) {
+  upload(file, username, dup, newName) {
+    let fileName = newName ? newName : file.name
+    if (!this.socket || this.uploading[fileName]) {
       return;
     }
     let uploadingFile = Object.keys(this.uploading).find(key => {
@@ -91,26 +92,26 @@ class MessageService {
     if (!uploadingFile) {
       let stream = ss.createStream();
       ss(this.socket).emit("upload", stream, {
-        fileName: `${username}/${file.name}`,
+        fileName: `${username}/${fileName}`,
         size: file.size,
         dup: dup
       });
       let readStream = ss.createBlobReadStream(file);
-      this.uploading[file.name] = {
+      this.uploading[fileName] = {
         stream: stream,
         readStream: readStream,
         status: "uploading",
         uploaded: 0
       };
       readStream.on("data", chunk => {
-        this.uploading[file.name].uploaded += chunk.length;
+        this.uploading[fileName].uploaded += chunk.length;
         this.callUpdate()
       });
       readStream.pipe(stream);
     } else {
       let readStream = ss.createBlobReadStream(file);
       readStream.pause();
-      this.uploading[file.name] = {
+      this.uploading[fileName] = {
         stream: null,
         readStream: readStream,
         status: "pending",
