@@ -27,12 +27,6 @@ class App extends Component {
     messageService.addUpdateFun(
       throttle.delay(this.updateUpload.bind(this), 200)
     );
-    messageService.getFile(this.state.id).then(res => {
-      this.setState({
-        files: res
-      });
-    });
-    messageService.setUserName(this.state.id);
   }
 
   updateUpload() {
